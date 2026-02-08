@@ -2,6 +2,8 @@
 
 The M5Stack Atom Matrix is ESP32-based devkit (xtensa) with different peripherals described below.
 
+## Board Specs
+
 | Specification  | Parameter                                    |
 | -------------- | -------------------------------------------- |
 | SoC            | ESP32-PICO-D4@Dual-core processor, 240MHz    |
@@ -24,6 +26,22 @@ The M5Stack Atom Matrix is ESP32-based devkit (xtensa) with different peripheral
 | Package Size   | 85.0 x 66.0 x 15.0mm                         |
 | Gross Weight   | 12.6 g                                       |
 
+## Pinout
+
+### RGB & BUTTON & IR & MPU6886
+
+| Peripheral | Pin | Kind   |
+| ---------- | --- | ------ |
+| RGB LED    | G27 | RGB    |
+| Button     | G39 | Button |
+| Infrared   | G12 | IR_TX  |
+| MPU6886    | G21 | SCL    |
+| MPU6886    | G25 | SDA    |
+
+### Grove
+
+TODO
+
 ## LED Matrix
 
 LED Matrix is 5x5 `WS2812C 2020`
@@ -35,3 +53,5 @@ M5Stack provides a demo library to work with the display: https://github.com/m5s
 ## Gyro
 
 Gyro is `MPU6886`. Datasheet is available at @./datasheets/MPU-6886-000193+v1.1_GHIC_en.pdf
+
+Gyro I2C address `0x68`

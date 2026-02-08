@@ -24,6 +24,8 @@ ln -sf ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rust-analyzer ~/
 
 ## Resources/Docs
 
+See ./docs/HARDWARE.md for specs and datasheets.
+
 - https://docs.m5stack.com/en/core/ATOM%20Matrix
 - https://docs.espressif.com/projects/rust/book/application-development/index.html
 - https://embassy.dev/
