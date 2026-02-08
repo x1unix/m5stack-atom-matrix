@@ -12,10 +12,15 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
+use esp_hal::gpio::Level;
+use esp_hal::rmt::{Rmt, TxChannelConfig, TxChannelCreator};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ble::controller::BleConnector;
-use log::info;
+use log::{info, warn};
 use trouble_host::prelude::*;
+
+use atom_test::led::{LedMatrix, RMT_CLK_DIVIDER};
 
 extern crate alloc;
 
@@ -46,6 +51,19 @@ async fn main(spawner: Spawner) -> ! {
 
     info!("Embassy initialized!");
 
+    // Animate the 5x5 WS2812 matrix (GPIO27).
+    let rmt = Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
+    let tx_config = TxChannelConfig::default()
+        .with_clk_divider(RMT_CLK_DIVIDER)
+        .with_idle_output_level(Level::Low)
+        .with_idle_output(true)
+        .with_carrier_modulation(false);
+    let channel = rmt
+        .channel0
+        .configure_tx(peripherals.GPIO27, tx_config)
+        .unwrap();
+    let mut matrix = LedMatrix::new(channel);
+
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
     let transport = BleConnector::new(&radio_init, peripherals.BT, Default::default()).unwrap();
@@ -58,8 +76,10 @@ async fn main(spawner: Spawner) -> ! {
     let _ = spawner;
 
     loop {
-        info!("Hello world!");
-        Timer::after(Duration::from_secs(1)).await;
+        if let Err(err) = matrix.step_green_chase() {
+            warn!("LED update failed: {:?}", err);
+        }
+        Timer::after(Duration::from_millis(80)).await;
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0/examples
