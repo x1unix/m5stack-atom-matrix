@@ -11,21 +11,23 @@ use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
+use esp_hal::Async;
 use esp_hal::clock::CpuClock;
-use esp_hal::gpio::Level;
-use esp_hal::rmt::{Rmt, TxChannelConfig, TxChannelCreator};
+use esp_hal::rmt::Rmt;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
+use esp_hal_smartled::{SmartLedsAdapterAsync, buffer_size_async};
 use esp_radio::ble::controller::BleConnector;
-use log::{info, warn};
+use log::info;
+use smart_leds::{RGB8, SmartLedsWriteAsync};
 use trouble_host::prelude::*;
-
-use atom_test::led::{LedMatrix, RMT_CLK_DIVIDER};
 
 extern crate alloc;
 
 const CONNECTIONS_MAX: usize = 1;
 const L2CAP_CHANNELS_MAX: usize = 1;
+const LED_COUNT: usize = 25;
+const FRAME_DELAY_MS: u64 = 80;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
@@ -52,17 +54,11 @@ async fn main(spawner: Spawner) -> ! {
     info!("Embassy initialized!");
 
     // Animate the 5x5 WS2812 matrix (GPIO27).
-    let rmt = Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
-    let tx_config = TxChannelConfig::default()
-        .with_clk_divider(RMT_CLK_DIVIDER)
-        .with_idle_output_level(Level::Low)
-        .with_idle_output(true)
-        .with_carrier_modulation(false);
-    let channel = rmt
-        .channel0
-        .configure_tx(peripherals.GPIO27, tx_config)
-        .unwrap();
-    let mut matrix = LedMatrix::new(channel);
+    let rmt: Rmt<'_, Async> = Rmt::new(peripherals.RMT, Rate::from_mhz(80))
+        .expect("Failed to initialize RMT")
+        .into_async();
+    let mut rmt_buffer = [esp_hal::rmt::PulseCode::default(); buffer_size_async(LED_COUNT)];
+    let mut led = SmartLedsAdapterAsync::new(rmt.channel0, peripherals.GPIO27, &mut rmt_buffer);
 
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
@@ -75,11 +71,17 @@ async fn main(spawner: Spawner) -> ! {
     // TODO: Spawn some tasks
     let _ = spawner;
 
+    let mut frame: usize = 0;
+    let mut pixels = [RGB8::default(); LED_COUNT];
     loop {
-        if let Err(err) = matrix.step_green_chase() {
-            warn!("LED update failed: {:?}", err);
+        for pixel in pixels.iter_mut() {
+            *pixel = RGB8::default();
         }
-        Timer::after(Duration::from_millis(80)).await;
+        pixels[frame] = RGB8 { r: 0, g: 255, b: 0 };
+        led.write(pixels.iter().copied()).await.unwrap();
+
+        frame = (frame + 1) % LED_COUNT;
+        Timer::after(Duration::from_millis(FRAME_DELAY_MS)).await;
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0/examples
