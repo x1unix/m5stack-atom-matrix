@@ -1,10 +1,12 @@
+use esp_hal::Blocking;
 use esp_hal::gpio::Level;
 use esp_hal::rmt::{Channel, Error, PulseCode, Tx};
-use esp_hal::Blocking;
 
 pub const LED_COUNT: usize = 25;
 pub const RMT_CLK_DIVIDER: u8 = 2;
-pub const GREEN_GRB: [u8; 3] = [0xFF, 0x00, 0x00];
+pub const RED_GRB: [u8; 3] = [0xFF, 0x00, 0x00];
+pub const GREEN_GRB: [u8; 3] = [0x00, 0xFF, 0x00];
+pub const BLUE_GRB: [u8; 3] = [0x00, 0x00, 0xFF];
 pub const OFF_GRB: [u8; 3] = [0x00, 0x00, 0x00];
 
 const LED_BITS_PER_PIXEL: usize = 24;
@@ -79,7 +81,9 @@ impl<'ch> LedMatrix<'ch> {
 
     pub fn step_green_chase(&mut self) -> Result<(), Error> {
         self.set_all(OFF_GRB);
-        self.set_pixel(self.frame, GREEN_GRB);
+        self.set_pixel(self.frame, RED_GRB);
+        self.set_pixel(self.frame + 1, GREEN_GRB);
+        self.set_pixel(self.frame + 2, BLUE_GRB);
         let result = self.show();
         self.frame = (self.frame + 1) % LED_COUNT;
         result
